@@ -2,14 +2,14 @@ defineModule(sim, list(
   name = "LandRCBM_partialDisturbance",
   description = "",
   keywords = "",
-  authors = structure(list(list(given = c("First", "Middle"), family = "Last", role = c("aut", "cre"), email = "email@example.com", comment = NULL)), class = "person"),
+  authors = structure(list(list(given = "Camille", family = "Giuliano", role = c("aut", "cre"), email = "cams0405@live.ca", comment = NULL)), class = "person"),
   childModules = character(0),
   version = list(LandRCBM_partialDisturbance = "0.0.0.9000"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("NEWS.md", "README.md", "LandRCBM_partialDisturbance.Rmd"),
-  reqdPkgs = list("SpaDES.core (>= 2.1.8.9018)", "ggplot2"),
+  reqdPkgs = list("SpaDES.core (>= 2.1.8.9018)", "data.table", "PredictiveEcology/LandR@development"),
   parameters = bindrows(
     #defineParameter("paramName", "paramClass", value, min, max, "parameter description"),
     defineParameter(".plots", "character", "screen", NA, NA,
@@ -105,26 +105,6 @@ Init <- function(sim) {
   set(burnedPixelCohortData, NULL, c("mortality", "aNPPAct"), NULL)
   # set(burnedPixelCohortData, ,c("sumB", "siteShade"), 0) # assume the fire burns all cohorts on site
   setkey(burnedPixelCohortData, speciesCode)
-  
-  ## DO SEROTINY -----------------------------
-  ## assess potential serotiny reg: add sexual maturity to the table and compare w/ age
-  ## as long as one cohort is sexually mature, serotiny is activated
-  serotinyOutputs <- doSerotiny(burnedPixelCohortData = burnedPixelCohortData,
-                                species = sim$species, currentTime = time(sim),
-                                treedFirePixelTableSinceLastDisp = treedFirePixelTableSinceLastDisp,
-                                sufficientLight = sim$sufficientLight,
-                                speciesEcoregion = sim$speciesEcoregion,
-                                calibrate = P(sim)$calibrate,
-                                postFirePixelCohortData = postFirePixelCohortData,
-                                postFireRegenSummary = sim$postFireRegenSummary)
-  
-  postFirePixelCohortData <- serotinyOutputs$postFirePixelCohortData
-  serotinyPixel <- serotinyOutputs$serotinyPixel
-  
-  if (!is.null(serotinyOutputs$postFireRegenSummary))
-    sim$postFireRegenSummary <- serotinyOutputs$postFireRegenSummary
-  
-  rm(serotinyOutputs)
   
   ## DO RESPROUTING --------------------------
   ## assess resprouting reproduction:
