@@ -1,14 +1,14 @@
 defineModule(sim, list(
-  name = "LandRCBM_PartialDisturbance",
+  name = "LandRCBM_partialDisturbance",
   description = "",
   keywords = "",
   authors = structure(list(list(given = c("First", "Middle"), family = "Last", role = c("aut", "cre"), email = "email@example.com", comment = NULL)), class = "person"),
   childModules = character(0),
-  version = list(LandRCBM_PartialDisturbance = "0.0.0.9000"),
+  version = list(LandRCBM_partialDisturbance = "0.0.0.9000"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
-  documentation = list("NEWS.md", "README.md", "LandRCBM_PartialDisturbance.Rmd"),
+  documentation = list("NEWS.md", "README.md", "LandRCBM_partialDisturbance.Rmd"),
   reqdPkgs = list("SpaDES.core (>= 2.1.8.9018)", "ggplot2"),
   parameters = bindrows(
     #defineParameter("paramName", "paramClass", value, min, max, "parameter description"),
@@ -65,7 +65,7 @@ defineModule(sim, list(
   )
 ))
 
-doEvent.LandRCBM_PartialDisturbance = function(sim, eventTime, eventType) {
+doEvent.LandRCBM_partialDisturbance = function(sim, eventTime, eventType) {
   switch(
     eventType,
     init = {
