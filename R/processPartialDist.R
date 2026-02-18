@@ -29,41 +29,47 @@ processPartialDist <- function(cohortData, partialDistTable, inactivePixelIndex)
   ]
   
   #create table with all cohorts on disturbed pixels
+  colsToKeep <- c("speciesCode", "ecoregionGroup", "age", "B", "pixelGroup", "totalBiomass")
   postDistPixelCohortData <- sim$cohortData[
     distCohorts,
     on = .(pixelGroup),
     nomatch = 0
-  ]
+  ][, ..colsToKeep]
   
-  # id disturbed pixels
-  distPixelMap <- classify(
-    sim$pixelGroupMap,
-    rcl = cbind(unique(distCohorts$pixelGroup), 1),
-    others = NA
+  #get disturbed pixel groups
+  distPG <- unique(postDistPixelCohortData$pixelGroup)
+  
+  #get disturbed pixels
+  distPixels <- which(values(sim$pixelGroupMap)[,1] %in% distPG)
+  
+  #build table of disturbed pixels and their associated pixel group.
+  pixelLookup <- data.table(
+    cellID     = distPixels,
+    pixelGroup = values(sim$pixelGroupMap)[distPixels]
   )
   
-  #get IDs of disturbed pixels"
-  distPixels <- which(values(sim$pixelGroupMap)[,1] %in% unique(distCohorts$pixelGroup))
+  #pixel-specific table with all cohort information
+  postDistPixelTable <- postDistPixelCohortData[
+    pixelLookup,
+    on = .(pixelGroup),
+    nomatch = 0,
+    allow.cartesian = TRUE
+  ]
   
+  #remove disturbed cohorts and recalc totalBiomass
+  spRemove <- unique(partialDistTable$speciesCode)
+  postDistPixelTable <- postDistPixelTable[
+    !speciesCode %in% spRemove
+  ][
+    , totalBiomass := sum(B),
+    by = cellID
+  ]
   
+  #site shade
+  siteShade <- data.table(calcSiteShade(currentTime = round(time(sim)), postDistPixelTable,
+                                        sim$speciesEcoregion, sim$minRelativeB))
+  ##MORTALITY COLUMN
   
-  
-  
+  #resprouting
   
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
