@@ -68,8 +68,27 @@ processPartialDist <- function(cohortData, partialDistTable, inactivePixelIndex)
   #site shade
   siteShade <- data.table(calcSiteShade(currentTime = round(time(sim)), postDistPixelTable,
                                         sim$speciesEcoregion, sim$minRelativeB))
-  ##MORTALITY COLUMN
+  siteShade <- siteShade[, .(pixelGroup, siteShade)]
+  postDistPixelTable <- siteShade[postDistPixelTable, on = "pixelGroup", nomatch = NA]
+  postDistPixelTable[is.na(siteShade), siteShade := 0]
+  rm(siteShade)
+  ## DOESN'T WORK RIGHT NOW NO MORTALITY COLUMN
   
   #resprouting
+  ##need a regular LandRCBM run to compare what all these tables are
+  resproutingOutputs <- doResprouting(treedFirePixelTableSinceLastDisp = treedFirePixelTableSinceLastDisp, #need to figure out my equivalent
+                                      burnedPixelCohortData = postDistPixelTable,
+                                      postFirePixelCohortData = postDistPixelCohortData,
+                                      currentTime = time(sim), 
+                                      species = sim$species,
+                                      sufficientLight = sim$sufficientLight,
+                                      calibrate = P(sim)$calibrate, #NULL
+                                      postFireRegenSummary = sim$postFireRegenSummary) #NULL
+  
+  ## BUILD NEW COHORTS/PIXEL GROUPS
+  
+  # EXPORT OBJECTS
+  ## new cohortData table
+  ## new pixelGroupMap
   
 }
