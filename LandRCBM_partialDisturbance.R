@@ -36,7 +36,7 @@ defineModule(sim, list(
     expectsInput("cohortData", "data.table", 
                  desc = "age cohort-biomass table hooked to pixel group map by pixelGroupIndex at succession time step"),
     expectsInput("PartialDistTable", "data.table",
-                 desc ="Table with partial disturbance information")
+                 desc ="Table with partial disturbance information"),
     expectsInput("inactivePixelIndex", "logical", 
                  desc = "internal use. Keeps track of which pixels are inactive"),
     expectsInput("pixelGroupMap", "RasterLayer",
@@ -79,12 +79,18 @@ doEvent.LandRCBM_partialDisturbance = function(sim, eventTime, eventType) {
 Init <- function(sim) {
   
   ##TODO: checks
-  
+  browser()
   #Can bring in either a rasters or a tables of partial disturbances.
   #if raster, need to be turned into a table. Looks like the majority is actually vector data.
   
-  #then function
-  processPartialDist(cohortData, PartialDistTable, inactivePixelIndex)
+  
+  if (as.numeric(time(sim)) %in% sim$partialDistTable$distYear) {
+    
+    
+    processPartialDist(cohortData, PartialDistTable, inactivePixelIndex)
+    
+    
+  }
   
   
   #########################
