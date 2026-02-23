@@ -4,7 +4,8 @@
 #' Processed partial disturbances (removal of cohorts) of pixels 
 #'
 #' @param cohortData
-#' @param PartialDistTable
+#' @param partialDistTable OPTIONAL need table or raster or both
+#' @param partialDistRaster OPTIONAL need table or raster or both
 #' @param inactivePixelIndex
 #'
 #' @return TODO
@@ -65,6 +66,10 @@ processPartialDist <- function(cohortData, partialDistTable, inactivePixelIndex)
     by = cellID
   ]
   
+  #calcSiteShade requires a mortality column. Add it as NA
+  #add check that only does this if the mortality column does not already exist
+  postDistPixelTable[, mortality := NA]
+  
   #site shade
   siteShade <- data.table(calcSiteShade(currentTime = round(time(sim)), postDistPixelTable,
                                         sim$speciesEcoregion, sim$minRelativeB))
@@ -72,11 +77,10 @@ processPartialDist <- function(cohortData, partialDistTable, inactivePixelIndex)
   postDistPixelTable <- siteShade[postDistPixelTable, on = "pixelGroup", nomatch = NA]
   postDistPixelTable[is.na(siteShade), siteShade := 0]
   rm(siteShade)
-  ## DOESN'T WORK RIGHT NOW NO MORTALITY COLUMN
   
   #resprouting
   ##need a regular LandRCBM run to compare what all these tables are
-  resproutingOutputs <- doResprouting(treedFirePixelTableSinceLastDisp = treedFirePixelTableSinceLastDisp, #need to figure out my equivalent
+  resproutingOutputs <- doResprouting(treedFirePixelTableSinceLastDisp = NA, #need to figure out my equivalent
                                       burnedPixelCohortData = postDistPixelTable,
                                       postFirePixelCohortData = postDistPixelCohortData,
                                       currentTime = time(sim), 
@@ -84,6 +88,17 @@ processPartialDist <- function(cohortData, partialDistTable, inactivePixelIndex)
                                       sufficientLight = sim$sufficientLight,
                                       calibrate = P(sim)$calibrate, #NULL
                                       postFireRegenSummary = sim$postFireRegenSummary) #NULL
+  
+  rePlanting <- plantCohorts(newPixelCohortData = distCohorts,
+                             cohortData = sim$cohortData,
+                             pixelGroupMap = sim$pixelGroupMap ,
+                             initialB = 10,
+                             currentTime = time(sim),
+                             trackPlanting = FALSE
+  )
+  
+  
+  
   
   ## BUILD NEW COHORTS/PIXEL GROUPS
   
