@@ -70,7 +70,14 @@ doEvent.LandRCBM_partialDisturbance = function(sim, eventTime, eventType) {
     eventType,
     init = {
       sim <- Init(sim)
+      sim <- scheduleEvent(sim, start(sim), "LandRCBM_partialDisturbance", "annualPartialDist", eventPriority = 3)
     },
+    
+    annualPartialDist = {
+      sim <- processDist(sim)
+      sim <- scheduleEvent(sim, time(sim) + 1, "LandRCBM_partialDisturbance", "annualPartialDist", eventPriority = 4)
+    },
+    
     warning(noEventWarning(sim))
   )
   return(invisible(sim))
@@ -78,184 +85,49 @@ doEvent.LandRCBM_partialDisturbance = function(sim, eventTime, eventType) {
 
 Init <- function(sim) {
   
-  ##TODO: checks
-  browser()
-  #Can bring in either a rasters or a tables of partial disturbances.
-  #if raster, need to be turned into a table. Looks like the majority is actually vector data.
-  
-  
-  if (as.numeric(time(sim)) %in% sim$partialDistTable$distYear) {
-    
-    
-    processPartialDist(cohortData, PartialDistTable, inactivePixelIndex)
-    
-    
-  }
-  
-  
-  #########################
-  ##EVERYTHING BELOW THIS POINT: is copy pasted from Biomass_regenerationPM
-  # here site shade is calculated, resprouting occurs, new cohorts are created.
-  #########################
-  
-  ## CALCULATE SIDE SHADE -----------------------------
-  siteShade <- data.table(calcSiteShade(currentTime = round(time(sim)), burnedPixelCohortData,
-                                        sim$speciesEcoregion, sim$minRelativeB))
-  siteShade <- siteShade[, .(pixelGroup, siteShade)]
-  burnedPixelCohortData <- siteShade[burnedPixelCohortData, on = "pixelGroup", nomatch = NA]
-  burnedPixelCohortData[is.na(siteShade), siteShade := 0]
-  rm(siteShade)
-  
-  ## clean burnedPixelCohortData from unnecessary columns
-  # set(burnedPixelCohortData, NULL, c("B", "mortality", "aNPPAct"), NULL)
-  set(burnedPixelCohortData, NULL, c("mortality", "aNPPAct"), NULL)
-  # set(burnedPixelCohortData, ,c("sumB", "siteShade"), 0) # assume the fire burns all cohorts on site
-  setkey(burnedPixelCohortData, speciesCode)
-  
-  ## DO RESPROUTING --------------------------
-  ## assess resprouting reproduction:
-  ## basically same thing as serotiny
-  resproutingOutputs <- doResprouting(serotinyPixel = serotinyPixel,
-                                      treedFirePixelTableSinceLastDisp = treedFirePixelTableSinceLastDisp,
-                                      burnedPixelCohortData = burnedPixelCohortData,
-                                      postFirePixelCohortData = postFirePixelCohortData,
-                                      currentTime = time(sim), species = sim$species,
-                                      sufficientLight = sim$sufficientLight,
-                                      calibrate = P(sim)$calibrate,
-                                      postFireRegenSummary = sim$postFireRegenSummary)
-  
-  postFirePixelCohortData <- resproutingOutputs$postFirePixelCohortData
-  sim$serotinyResproutSuccessPixels <- resproutingOutputs$serotinyResproutSuccessPixels
-  if (!is.null(resproutingOutputs$postFireRegenSummary))
-    sim$postFireRegenSummary <- resproutingOutputs$postFireRegenSummary
-  
-  rm(resproutingOutputs)
-  
-  ## ADD NEW COHORTS -----------------------------
-  ## add new cohorts to pixels where serotiny/regeneration were activated
-  if (NROW(postFirePixelCohortData)) {
-    ## redo post-fire pixel groups by adding the maxPixelGroup to their ecoregioMap values
-    if (!is.null(sim$serotinyResproutSuccessPixels)) {
-      
-      # Add new cohorts to BOTH the sim$cohortData and sim$pixelGroupMap
-      ## reclassify pixel groups as burnt (0L)
-      if (verbose > 0)
-        message(blue("Post serotiny and resprouting"))
-      
-      ## add the survivors cohorts to the serotiny/reprouting ones
-      cols <- c("pixelGroup", "pixelIndex", "speciesCode", "ecoregionGroup", "age", "B")
-      postFirePixelCohortData <- rbind(postFirePixelCohortData, burnedPixelCohortData[B > 0, ..cols],
-                                       use.names = TRUE, fill = TRUE)
-      postFirePixelCohortData[is.na(type), type := "survivor"]
-      
-      ## set ages to 1 here, because updateCohortData will only so so if there isn't an age column
-      postFirePixelCohortData[is.na(age), age := 1L]
-      
-      ## filter cohortData to only have unburnt pixels -- this is not sufficient!!!
-      ## in PGs where cohorts die in one but not other pixels, these cohorts from other pixels are added back where they were supposed to be removed.
-      # unburnedPCohortData <- addPixels2CohortData(copy(sim$cohortData), sim$pixelGroupMap)
-      # unburnedPCohortData <- unburnedPCohortData[!pixelIndex %in% treedFirePixelTableSinceLastDisp$pixelIndex]
-      # set(unburnedPCohortData, NULL, "pixelIndex", NULL)  ## collapse pixel groups again
-      # unburnedPCohortData <- unburnedPCohortData[!duplicated(unburnedPCohortData)]
-      
-      ## redo PGs in all burnt pixels
-      ## 1) we need to create a table of unburt pixels and burnt pixels with dead and surviving cohorts,
-      ## but not new cohorts (serotiny/resprout) -- these are added by updateCohortData
-      ## 2) then remove dead cohorts for updateCohortData and redo PG
-      ## the PGs need to be done twice otherwise, once to account for cohorts that only died in some but not all pixels of a given
-      ## pixelGroup, and the second time to ensure that pixels that became similar after the death of some cohorts can
-      ## be grouped together.
-      
-      unburnedPCohortData <- addPixels2CohortData(copy(sim$cohortData), sim$pixelGroupMap)
-      unburnedPCohortData <- unburnedPCohortData[!pixelIndex %in% treedFirePixelTableSinceLastDisp$pixelIndex]
-      newPCohortData <- rbind(unburnedPCohortData, burnedPixelCohortData, fill = TRUE)
-      
-      cd <- newPCohortData[, c("pixelIndex", columnsForPixelGroups), with = FALSE]
-      newPCohortData[, pixelGroup := generatePixelGroups(cd, maxPixelGroup = 0L, columns = columnsForPixelGroups)]
-      pixelGroupMap <- sim$pixelGroupMap
-      pixelGroupMap[newPCohortData$pixelIndex] <- newPCohortData$pixelGroup
-      
-      if (isTRUE(getOption("LandR.assertions", TRUE))) {
-        test <- setdiff(which(!is.na(pixelGroupMap[])), newPCohortData$pixelIndex)
-        if (any(pixelGroupMap[test] != 0)) {
-          stop("Bug in Biomass_regenerationPM: not all pixels are in the joint burnt and unburnt pixelCohortData table")
-        }
-      }
-      
-      ## remove dead cohorts and re-do pixelGroups
-      newPCohortData <- newPCohortData[B > 0]
-      cd <- newPCohortData[, c("pixelIndex", columnsForPixelGroups), with = FALSE]
-      newPCohortData[, pixelGroup := generatePixelGroups(cd, maxPixelGroup = 0L, columns = columnsForPixelGroups)]
-      pixelGroupMap[newPCohortData$pixelIndex] <- newPCohortData$pixelGroup
-      
-      ## recalculate sumB
-      newPCohortData[, sumB := sum(B, na.rm = TRUE), by = pixelGroup]
-      
-      ## check for duplicates at pixel-level
-      if (isTRUE(getOption("LandR.assertions", TRUE))) {
-        if (any(duplicated(newPCohortData[, .(speciesCode, age, pixelIndex)]))) {
-          stop("Duplicate cohorts in pixels were found after burning, serotiny and resprouting")
-        }
-      }
-      
-      ## collapse to PGs
-      tempCohortData <- copy(newPCohortData)
-      set(tempCohortData, NULL, "pixelIndex", NULL)
-      cols <- c("pixelGroup", "speciesCode", "ecoregionGroup", "age")
-      tempCohortData <- tempCohortData[!duplicated(tempCohortData[, ..cols])]
-      
-      if (isTRUE(getOption("LandR.assertions", TRUE))) {
-        if (any(duplicated(tempCohortData[, .(speciesCode, age, pixelGroup)]))) {
-          stop("Duplicate cohorts in pixelGroups were found after burning, serotiny and resprouting")
-        }
-      }
-      
-      outs <- updateCohortData(newPixelCohortData = copy(postFirePixelCohortData[, -"pixelGroup", with = FALSE]),
-                               cohortData = copy(tempCohortData),
-                               pixelGroupMap = pixelGroupMap,
-                               currentTime = round(time(sim)),
-                               speciesEcoregion = copy(sim$speciesEcoregion),
-                               treedFirePixelTableSinceLastDisp = copy(treedFirePixelTableSinceLastDisp),
-                               initialB = P(sim)$initialB,
-                               successionTimestep = P(sim)$successionTimestep)
-      
-      assertPostFireDist(cohortDataOrig = tempCohortData, pixelGroupMapOrig = pixelGroupMap,
-                         cohortDataNew = outs$cohortData, pixelGroupMapNew = outs$pixelGroupMap,
-                         postFirePixelCohortData = postFirePixelCohortData,
-                         burnedPixelCohortData, doAssertion = getOption("LandR.assertions", TRUE))
-      
-      sim$cohortData <- outs$cohortData
-      sim$pixelGroupMap <- outs$pixelGroupMap
-      sim$pixelGroupMap[] <- as.integer(sim$pixelGroupMap[])
-    }
-  }
-  
-  
-  ## export objects
-  sim$severityBMap <- severityBMap
-  sim$severityData <- severityData
-  sim$lastFireYear <- time(sim)
-  
-  ## TODO: Ceres: moved this to here to avoid re-killing/serotiny/repsoruting pixelGroups that burned in the previous year.
-  ## update past pixelGroup number to match current ones.
-  sim$treedFirePixelTableSinceLastDisp[, pixelGroup := as.integer(getValues(sim$pixelGroupMap))[pixelIndex]]
-  # append previous year's
-  treedFirePixelTableSinceLastDisp <- rbindlist(list(sim$treedFirePixelTableSinceLastDisp,
-                                                     treedFirePixelTableSinceLastDisp))
-  
-  sim$treedFirePixelTableSinceLastDisp <- treedFirePixelTableSinceLastDisp
-  
   return(invisible(sim))
 }
 
+processDist <- function(sim) {
+  browser()
+  if (as.numeric(time(sim)) %in% sim$partialDistTable$distYear) {
+    if (is.null(sim$partialDistLoc)) {
+      partialDistTable <- sim$partialDistTable
+      sim$cohortData <- processPartialDist(cohortData = sim$cohortData, 
+                                           partialDistTable = as.data.table(partialDistTable), 
+                                           pixelGroupMap = sim$pixelGroupMap,
+                                           currentTime = time(sim))
+    } else {
+      partialDistTable <- sim$partialDistTable
+      sim$cohortData <- processPartialDist(cohortData = sim$cohortData, 
+                                           partialDistTable = as.data.table(partialDistTable), 
+                                           pixelGroupMap = sim$pixelGroupMap,
+                                           currentTime = time(sim),
+                                           partialDistLoc = sim$partialDistLoc) }
+    #for now this doesn't affect the pixel groups, the only object this function returns is cohortData
+    
+    #remake pixelGroups
+    
+    #eventually probably have 3 functions: 
+    #harvest (partial dist with replanting), 
+    #fire (partial dist with severity calcs that decide what dies, resprouting +serotiny),
+    #other (partial dist with resprouting)
+    
+  }
+  
+  return(invisible(sim))
+}
 
 .inputObjects <- function(sim) {
   
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
   
-  
-  
+  # input species ecoregion dynamics table
+  if (!suppliedElsewhere("speciesEcoregion", sim)) {
+    sim$speciesEcoregion <- prepInputsSpeciesEcoregion(url = extractURL("speciesEcoregion"),
+                                                       dPath = dPath, cacheTags = cacheTags)
+  }
   
   
   ## ALL OBJECTS BELOW ARE FROM BIOMASS_REGENERATIONPM
@@ -282,13 +154,6 @@ Init <- function(sim) {
                                 "X0", "X1", "X2", "X3", "X4", "X5")
     sim$sufficientLight <- data.frame(sufficientLight)
   }
-  
-  #  # input species ecoregion dynamics table
-  if (!suppliedElsewhere("speciesEcoregion", sim)) {
-    sim$speciesEcoregion <- prepInputsSpeciesEcoregion(url = extractURL("speciesEcoregion"),
-                                                       dPath = dPath, cacheTags = cacheTags)
-  }
-  
   
   return(invisible(sim))
 }
