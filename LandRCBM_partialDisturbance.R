@@ -37,8 +37,6 @@ defineModule(sim, list(
                  desc = "age cohort-biomass table hooked to pixel group map by pixelGroupIndex at succession time step"),
     expectsInput("PartialDistTable", "data.table",
                  desc ="Table with partial disturbance information"),
-    expectsInput("inactivePixelIndex", "logical", 
-                 desc = "internal use. Keeps track of which pixels are inactive"),
     expectsInput("pixelGroupMap", "RasterLayer",
                  desc = "updated community map at each succession time step"),
     expectsInput("species", "data.table",
@@ -47,11 +45,11 @@ defineModule(sim, list(
     expectsInput("speciesEcoregion", "data.table",
                  desc = "table defining the maxANPP, maxB and SEP, which can change with both ecoregion and simulation time",
                  sourceURL = "https://raw.githubusercontent.com/LANDIS-II-Foundation/Extensions-Succession/master/biomass-succession-archive/trunk/tests/v6.0-2.0/biomass-succession-dynamic-inputs_test.txt"),
-    expectsInput("sufficientLight", "data.frame",
-                 desc = "table defining how the species with different shade tolerance respond to stand shadeness",
-                 sourceURL = "https://raw.githubusercontent.com/LANDIS-II-Foundation/Extensions-Succession/master/biomass-succession-archive/trunk/tests/v6.0-2.0/biomass-succession_test.txt"),
-    expectsInput("treedFirePixelTableSinceLastDisp", "data.table",
-                 desc = "3 columns: pixelIndex, pixelGroup, and burnTime. Each row represents a forested pixel that was burned up to and including this year, since last dispersal event, with its corresponding pixelGroup and time it occurred")
+    # expectsInput("sufficientLight", "data.frame",
+    #              desc = "table defining how the species with different shade tolerance respond to stand shadeness",
+    #              sourceURL = "https://raw.githubusercontent.com/LANDIS-II-Foundation/Extensions-Succession/master/biomass-succession-archive/trunk/tests/v6.0-2.0/biomass-succession_test.txt"),
+    # expectsInput("treedFirePixelTableSinceLastDisp", "data.table",
+    #              desc = "3 columns: pixelIndex, pixelGroup, and burnTime. Each row represents a forested pixel that was burned up to and including this year, since last dispersal event, with its corresponding pixelGroup and time it occurred")
   ),
   outputObjects = bindrows(
     #createsOutput("objectName", "objectClass", "output object description", ...),
@@ -60,8 +58,8 @@ defineModule(sim, list(
                                "by pixelGroupIndex at succession time step")),
     createsOutput("pixelGroupMap", "RasterLayer",
                   desc = "updated community map at each succession time step"),
-    createsOutput("serotinyResproutSuccessPixels", "numeric",
-                  desc = "Pixels that were successfully regenerated via serotiny or resprouting. This is a subset of treedBurnLoci")
+    # createsOutput("serotinyResproutSuccessPixels", "numeric",
+    #               desc = "Pixels that were successfully regenerated via serotiny or resprouting. This is a subset of treedBurnLoci")
   )
 ))
 
@@ -93,20 +91,21 @@ processDist <- function(sim) {
   if (as.numeric(time(sim)) %in% sim$partialDistTable$distYear) {
     if (is.null(sim$partialDistLoc)) {
       partialDistTable <- sim$partialDistTable
-      sim$cohortData <- processPartialDist(cohortData = sim$cohortData, 
-                                           partialDistTable = as.data.table(partialDistTable), 
-                                           pixelGroupMap = sim$pixelGroupMap,
-                                           currentTime = time(sim))
+      partialDist <- processPartialDist(cohortData = sim$cohortData, 
+                                        partialDistTable = as.data.table(partialDistTable), 
+                                        pixelGroupMap = sim$pixelGroupMap,
+                                        currentTime = time(sim))
     } else {
       partialDistTable <- sim$partialDistTable
-      sim$cohortData <- processPartialDist(cohortData = sim$cohortData, 
-                                           partialDistTable = as.data.table(partialDistTable), 
-                                           pixelGroupMap = sim$pixelGroupMap,
-                                           currentTime = time(sim),
-                                           partialDistLoc = sim$partialDistLoc) }
-    #for now this doesn't affect the pixel groups, the only object this function returns is cohortData
+      partialDist <- processPartialDist(cohortData = sim$cohortData, 
+                                        partialDistTable = as.data.table(partialDistTable), 
+                                        pixelGroupMap = sim$pixelGroupMap,
+                                        currentTime = time(sim),
+                                        partialDistLoc = sim$partialDistLoc) }
     
-    #remake pixelGroups
+    ## update cohortData and pixelGroupMap
+    sim$cohortData <- partialDist$cohortData
+    sim$pixelGroupMap <- partialDist$pixelGroupMap
     
     #eventually probably have 3 functions: 
     #harvest (partial dist with replanting), 
