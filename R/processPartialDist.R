@@ -50,11 +50,19 @@ processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, curr
   
   ## determine if all pixels in a pixelGroup is disturbed or now
   pixelGroups <- values(pixelGroupMap, mat = FALSE)
+  pixelGroupsClean <- pixelGroups[!is.na(pixelGroups) & pixelGroups > 0]
+  distPixelGroupsClean <- pixelGroups[distPixels]
+  distPixelGroupsClean <- distPixelGroupsClean[!is.na(distPixelGroupsClean) & distPixelGroupsClean > 0]
+  pixelGroupIDs <- sort(unique(pixelGroupsClean))
+  totalTab <- tabulate(pixelGroupsClean, nbins = max(pixelGroupIDs))
+  distTab <- tabulate(distPixelGroupsClean, nbins = max(pixelGroupIDs))
+  totalPixelCount <- totalTab[pixelGroupIDs]
+  distPixelCount <- distTab[pixelGroupIDs]
   
   pixelGroupDist <- data.table(
-    pixelGroup = unique(pixelGroups),
-    disturbedPixels = tabulate(pixelGroups[distPixels], nbins = max(pixelGroups)),
-    totalPixels = tabulate(pixelGroups, nbins = max(pixelGroups)))
+    pixelGroup = pixelGroupIDs,
+    disturbedPixels = distPixelCount,
+    totalPixels = totalPixelCount)
   
   pixelGroupDist[, disturbed := disturbedPixels > 0]
   pixelGroupDist[, partial := disturbedPixels > 0 & disturbedPixels < totalPixels]
