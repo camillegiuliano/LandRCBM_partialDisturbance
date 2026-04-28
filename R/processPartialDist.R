@@ -72,13 +72,17 @@ processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, curr
   
   ## create new pixel groups from groups that are not entirely disturbed (new group = disturbed, old group = undisturbed)
   maxPixelGroup <- max(cohortData$pixelGroup)
-  newPixelGroupmMap <- pixelGroups
+  # newPixelGroupmMap <- pixelGroups
+  newPixelGroupmMap <- terra::values(pixelGroupMap, mat = FALSE, na.rm = FALSE)
   newCohorts <- list()
+  newPGs <- integer()  #NEW
   
   for (pg in partialPG) {
     # create new pixel group
     maxPixelGroup <- maxPixelGroup + 1
     newPixelGroup <- maxPixelGroup
+    
+    newPGs <- c(newPGs, newPixelGroup) #NEW
     
     pgPixels <- which(pixelGroups == pg)
     disturbedSubset <- intersect(pgPixels, distPixels)
@@ -100,9 +104,9 @@ processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, curr
   ## Update pixelGroupMap raster
   pixelGroupMap <- setValues(pixelGroupMap, newPixelGroupmMap)
   
-  
   ## create table of disturbed cohorts
-  disturbedPixelGroups <- unique(newPixelGroupmMap[distPixels])
+  # disturbedPixelGroups <- unique(newPixelGroupmMap[distPixels])
+  disturbedPixelGroups <- unique(c(fullPG, newPGs)) #NEW
   distCohorts <- cohortData[pixelGroup %in% disturbedPixelGroups]
   distCohorts <- partialDistTable[
     distCohorts,
@@ -133,7 +137,8 @@ processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, curr
   cohortData <- rePlanting[
     , totalBiomass := sum(B),
     by = pixelGroup]
-  
+  #ensure cohortData$pixelGroup is an integer
+  cohortData[, pixelGroup := as.integer(pixelGroup)]
   ## return new cohortData and pixelGroupMap
   return(list(
     cohortData = cohortData,

@@ -87,7 +87,6 @@ Init <- function(sim) {
 }
 
 processDist <- function(sim) {
-  browser()
   if (as.numeric(time(sim)) %in% sim$partialDistTable$distYear) {
     if (is.null(sim$partialDistLoc)) {
       partialDistTable <- sim$partialDistTable
@@ -112,6 +111,28 @@ processDist <- function(sim) {
     #fire (partial dist with severity calcs that decide what dies, resprouting +serotiny),
     #other (partial dist with resprouting)
     
+  }
+  
+  #if run with simpleHarvest. lots of hardcoding here, would like to make it more generic.
+  if (!is.null(sim$rstCurrentHarvest) && global(sim$rstCurrentHarvest, "max", na.rm = TRUE)[[1]] > 0) {
+    # browser()
+    for (species in names(sim$speciesHarvestMaps)){
+      
+      partialDistTable <- data.table(
+        speciesCode = species,
+        ageMin      = 50L,
+        ageMax      = 500L,
+        distYear    = time(sim))
+      
+      partialDist <- processPartialDist(cohortData = sim$cohortData, 
+                                        partialDistTable = as.data.table(partialDistTable), 
+                                        pixelGroupMap = sim$pixelGroupMap,
+                                        partialDistLoc = sim$speciesHarvestMaps[[species]],
+                                        currentTime = time(sim))
+      sim$cohortData <- partialDist$cohortData
+      sim$pixelGroupMap <- partialDist$pixelGroupMap
+    }
+    # browser()
   }
   
   return(invisible(sim))
