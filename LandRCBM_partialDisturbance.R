@@ -120,8 +120,6 @@ processDist <- function(sim) {
       
       partialDistTable <- data.table(
         speciesCode = species,
-        ageMin      = 50L,
-        ageMax      = 500L,
         distYear    = time(sim))
       
       partialDist <- processPartialDist(cohortData = sim$cohortData, 
