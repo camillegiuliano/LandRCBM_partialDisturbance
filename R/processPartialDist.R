@@ -12,10 +12,16 @@
 #'
 #' @export
 #' @importFrom data.table as.data.table
-processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, currentTime, partialDistLoc = NULL) {
+processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, currentTime, partialDistLoc = NULL, ageMin = 50, ageMax = 500) {
   
-  ## Subset partialDistTable to disturbances of current year
+  ## Subset partialDistTable to disturbances of current year and add age columns if not provided
   partialDistTable <- partialDistTable[distYear == currentTime]
+  if (is.na(partialDistTable$ageMin)){
+    partialDistTable$ageMin <- ageMin
+  }
+  if (is.na(partialDistTable$ageMax)){
+    partialDistTable$ageMax <- ageMax
+  }
   
   ## ID pixels that can be disturbed
   if (!is.null(partialDistLoc)) {
