@@ -12,7 +12,7 @@
 #'
 #' @export
 #' @importFrom data.table as.data.table
-processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, currentTime, partialDistLoc = NULL, ageMin = 50, ageMax = 500) {
+processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, currentTime, partialDistLoc = NULL, ageMin = 50L, ageMax = 500L) {
   
   ## Subset partialDistTable to disturbances of current year and add age columns if not provided
   partialDistTable <- partialDistTable[distYear == currentTime]
