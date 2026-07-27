@@ -7,12 +7,13 @@
 #' @param partialDistTable OPTIONAL need table or raster or both
 #' @param partialDistRaster OPTIONAL need table or raster or both
 #' @param pixelGroupMap
+#' @param replanting TRUE/FALSE determines if replanting occurs or not
 #'
 #' @return TODO
 #'
 #' @export
 #' @importFrom data.table as.data.table
-processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, currentTime, partialDistLoc = NULL, ageMin = 50L, ageMax = 500L) {
+processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, replanting = TRUE, currentTime, partialDistLoc = NULL, ageMin = 50L, ageMax = 500L) {
   
   ## Subset partialDistTable to disturbances of current year and add age columns if not provided
   partialDistTable <- partialDistTable[distYear == currentTime]
@@ -81,14 +82,14 @@ processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, curr
   # newPixelGroupmMap <- pixelGroups
   newPixelGroupmMap <- terra::values(pixelGroupMap, mat = FALSE, na.rm = FALSE)
   newCohorts <- list()
-  newPGs <- integer()  #NEW
+  newPGs <- integer() 
   
   for (pg in partialPG) {
     # create new pixel group
     maxPixelGroup <- maxPixelGroup + 1
     newPixelGroup <- maxPixelGroup
     
-    newPGs <- c(newPGs, newPixelGroup) #NEW
+    newPGs <- c(newPGs, newPixelGroup)
     
     pgPixels <- which(pixelGroups == pg)
     disturbedSubset <- intersect(pgPixels, distPixels)
@@ -112,7 +113,7 @@ processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, curr
   
   ## create table of disturbed cohorts
   # disturbedPixelGroups <- unique(newPixelGroupmMap[distPixels])
-  disturbedPixelGroups <- unique(c(fullPG, newPGs)) #NEW
+  disturbedPixelGroups <- unique(c(fullPG, newPGs))
   distCohorts <- cohortData[pixelGroup %in% disturbedPixelGroups]
   distCohorts <- partialDistTable[
     distCohorts,
@@ -131,6 +132,7 @@ processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, curr
   cohortData <- cohortData[!distCohorts, on = .(speciesCode, pixelGroup, age)]
   
   ## replanting
+  if (replanting == TRUE){
   rePlanting <- plantCohorts(
     newPixelCohortData = distCohorts,
     cohortData = cohortData,
@@ -139,10 +141,16 @@ processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, curr
     currentTime = currentTime,
     trackPlanting = FALSE)
   
-  ## recalc total biomass
+  ## recalc total biomass w/ replanting
   cohortData <- rePlanting[
     , totalBiomass := sum(B),
     by = pixelGroup]
+  } else {
+    #recalc total biomass if cohorts are removed and not replanted
+    cohortData <- cohortData[
+      , totalBiomass := sum(B),
+      by = pixelGroup]
+  }
   #ensure cohortData$pixelGroup is an integer
   cohortData[, pixelGroup := as.integer(pixelGroup)]
   ## return new cohortData and pixelGroupMap
