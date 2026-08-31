@@ -17,10 +17,10 @@ processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, repl
   
   ## Subset partialDistTable to disturbances of current year and add age columns if not provided
   partialDistTable <- partialDistTable[distYear == currentTime]
-  if (is.na(partialDistTable$ageMin)){
+  if (!"ageMin" %in% names(partialDistTable)){
     partialDistTable$ageMin <- ageMin
   }
-  if (is.na(partialDistTable$ageMax)){
+  if (!"ageMax" %in% names(partialDistTable)){
     partialDistTable$ageMax <- ageMax
   }
   

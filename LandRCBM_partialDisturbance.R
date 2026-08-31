@@ -115,7 +115,6 @@ processDist <- function(sim) {
   
   #if run with simpleHarvest. lots of hardcoding here, would like to make it more generic.
   if (!is.null(sim$rstCurrentHarvest) && global(sim$rstCurrentHarvest, "max", na.rm = TRUE)[[1]] > 0) {
-    # browser()
     for (species in names(sim$speciesHarvestMaps)){
       
       partialDistTable <- data.table(
@@ -130,7 +129,6 @@ processDist <- function(sim) {
       sim$cohortData <- partialDist$cohortData
       sim$pixelGroupMap <- partialDist$pixelGroupMap
     }
-    # browser()
   }
   
   return(invisible(sim))
