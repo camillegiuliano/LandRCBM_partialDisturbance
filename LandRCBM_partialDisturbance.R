@@ -116,7 +116,6 @@ processDist <- function(sim) {
   #if run with simpleHarvest. lots of hardcoding here, would like to make it more generic.
   if (!is.null(sim$rstCurrentHarvest) && global(sim$rstCurrentHarvest, "max", na.rm = TRUE)[[1]] > 0) {
     for (species in names(sim$speciesHarvestMaps)){
-      
       partialDistTable <- data.table(
         speciesCode = species,
         distYear    = time(sim))
@@ -128,6 +127,50 @@ processDist <- function(sim) {
                                         currentTime = time(sim))
       sim$cohortData <- partialDist$cohortData
       sim$pixelGroupMap <- partialDist$pixelGroupMap
+  
+      #initialize or update disturbanceEvents and disturbanceMeta tables for spadesCBM
+      if (is.null(sim$disturbanceMeta)) { #initialize  table if it doesn't exist yet
+        sim$disturbanceMeta <- data.table(
+          eventID = 1,
+          species = species,
+          wholeStand = 1,
+          disturbance_type_id = 10 #check if this is really clearcut w/o salvage
+        )
+      } else {
+        if (!any(sim$disturbanceMeta$species == species)) { #add event if it does not yet exist for the current species
+          newEvent <- data.table(
+            eventID = (max(sim$disturbanceMeta$eventID) + 1),
+            species = species,
+            wholeStand = 1,
+            disturbance_type_id = 10 #check if this is really clearcut w/o salvage
+          )
+          sim$disturbanceMeta <- rbindlist(list(sim$disturbanceMeta, newEvent))
+        }
+      }
+      if (is.null(sim$disturbanceEvents)) {  #initialize  table if it doesn't exist yet
+        eventID <- sim$disturbanceMeta[ #get correct eventID from disturbanceMeta
+          species == species,
+          eventID]
+        distPixelIndex <- which(values(sim$speciesHarvestMaps[[species]]) == 1) #get pixelIndex of impacted pixels
+        
+        sim$disturbanceEvents <- data.table(
+          pixelIndex = distPixelIndex,
+          year = time(sim),
+          eventID = eventID
+        )
+      } else { 
+        eventID <- sim$disturbanceMeta[ #get correct eventID from disturbanceMeta
+          species == species,
+          eventID]
+        distPixelIndex <- which(values(sim$speciesHarvestMaps[[species]]) == 1) #get pixelIndex of impacted pixels
+        
+        newEvent <-  data.table( #add to existing table with current year's affected pixels for current species. 
+          pixelIndex = distPixelIndex,
+          year = time(sim),
+          eventID = eventID
+        )
+        sim$disturbanceEvents <- rbindlist(list(sim$disturbanceEvents, newEvent))
+      }
     }
   }
   
