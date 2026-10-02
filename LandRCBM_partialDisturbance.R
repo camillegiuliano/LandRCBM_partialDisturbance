@@ -115,19 +115,19 @@ processDist <- function(sim) {
   
   #if run with simpleHarvest. lots of hardcoding here, would like to make it more generic.
   if (!is.null(sim$rstCurrentHarvest) && global(sim$rstCurrentHarvest, "max", na.rm = TRUE)[[1]] > 0) {
-    for (species in names(sim$speciesHarvestMaps)){
-      partialDistTable <- data.table(
-        speciesCode = species,
-        distYear    = time(sim))
-      
-      partialDist <- processPartialDist(cohortData = sim$cohortData, 
-                                        partialDistTable = as.data.table(partialDistTable), 
-                                        pixelGroupMap = sim$pixelGroupMap,
-                                        partialDistLoc = sim$speciesHarvestMaps[[species]],
-                                        currentTime = time(sim))
-      sim$cohortData <- partialDist$cohortData
-      sim$pixelGroupMap <- partialDist$pixelGroupMap
-    }
+    ## clearcut: every species' cohorts within the age limits go in each harvested pixel, not only
+    ## the dominant species the pixel was flagged under (speciesHarvestMaps)
+    partialDistTable <- data.table(
+      speciesCode = unique(as.character(sim$cohortData$speciesCode)),
+      distYear    = time(sim))
+
+    partialDist <- processPartialDist(cohortData = sim$cohortData,
+                                      partialDistTable = partialDistTable,
+                                      pixelGroupMap = sim$pixelGroupMap,
+                                      partialDistLoc = sim$rstCurrentHarvest,
+                                      currentTime = time(sim))
+    sim$cohortData <- partialDist$cohortData
+    sim$pixelGroupMap <- partialDist$pixelGroupMap
     #create simple events table for landRCBM_split3pools
     if (!is.null(sim$harvestSummary)) {
       sim$partialHarvestEvents <- sim$harvestSummary[, .(year, pixelIndex, speciesCode, age)]
