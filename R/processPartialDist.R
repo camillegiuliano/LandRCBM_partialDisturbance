@@ -133,8 +133,9 @@ processPartialDist <- function(cohortData, partialDistTable, pixelGroupMap, repl
   
   ## replanting
   if (replanting == TRUE){
+  ## one new cohort per species per pixelGroup, even if several of its cohorts were cut
   rePlanting <- plantCohorts(
-    newPixelCohortData = distCohorts,
+    newPixelCohortData = unique(distCohorts, by = c("pixelGroup", "speciesCode")),
     cohortData = cohortData,
     pixelGroupMap = pixelGroupMap,
     initialB = 10,
